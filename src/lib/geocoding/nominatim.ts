@@ -119,11 +119,16 @@ export async function geocodePlaceNames(
       continue;
     }
 
-    const coords = await geocodePlaceName(name, signal, logger);
-    results.set(name, coords);
-    onResult?.(name, coords);
-    done++;
-    onProgress?.(done, names.length);
+    try {
+      const coords = await geocodePlaceName(name, signal, logger);
+      results.set(name, coords);
+      onResult?.(name, coords);
+      done++;
+      onProgress?.(done, names.length);
+    } catch (err: unknown) {
+      if (isAbortError(err)) break;
+      throw err;
+    }
 
     // Rate limit: wait 1.1s between requests to comply with Nominatim policy
     if (done < names.length) {
