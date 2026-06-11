@@ -1,0 +1,140 @@
+import type { GpsCoords } from "@/lib/gedcom/types";
+
+/** Nominatim JSON response shape (partial) */
+interface NominatimResult {
+  lat: string;
+  lon: string;
+  display_name: string;
+}
+
+export type GeocodeLogger = (message: string, details?: Record<string, unknown>) => void;
+
+/** In-memory cache: place name -> coords (or null if geocoding failed) */
+const geocodeCache = new Map<string, GpsCoords | null>();
+
+/**
+ * Geocode a place name using the OpenStreetMap Nominatim API.
+ * Returns null if no result is found.
+ *
+ * Nominatim usage policy requires:
+ * - No more than 1 request per second
+ *
+ * The caller is responsible for rate-limiting when calling this function
+ * for multiple places in sequence.
+ */
+function isAbortError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "name" in err &&
+    (err as { name?: string }).name === "AbortError"
+  );
+}
+
+export async function geocodePlaceName(
+  name: string,
+  signal?: AbortSignal,
+  logger?: GeocodeLogger,
+): Promise<GpsCoords | null> {
+  const cached = geocodeCache.get(name);
+  if (cached !== undefined) {
+    logger?.("cache-hit", { name, coords: cached });
+    return cached;
+  }
+
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("q", name);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", "1");
+
+  let result: GpsCoords | null = null;
+  try {
+    logger?.("request", { name, url: url.toString() });
+    const response = await fetch(url.toString(), {
+      headers: {
+        "X-App-Name": "gedcom-map",
+        "Accept-Language": "en",
+      },
+      signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Nominatim returned HTTP ${response.status}`);
+    }
+
+    const data = (await response.json()) as NominatimResult[];
+    if (data.length > 0) {
+      const lat = parseFloat(data[0].lat);
+      const lon = parseFloat(data[0].lon);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        result = { lat, lon };
+        logger?.("response-ok", { name, coords: result });
+      } else {
+        logger?.("response-invalid-coords", { name, lat: data[0].lat, lon: data[0].lon });
+      }
+    } else {
+      logger?.("response-empty", { name });
+    }
+  } catch (err: unknown) {
+    if (isAbortError(err)) throw err;
+    logger?.("request-error", {
+      name,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    // Other errors: treat as not found
+  }
+
+  geocodeCache.set(name, result);
+  return result;
+}
+
+/** Sleep for ms milliseconds (used for Nominatim rate limiting) */
+export function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/** Geocode a list of place names, rate-limited to 1 request/second.
+ *  Returns a map of name -> coords (null means not found). */
+export async function geocodePlaceNames(
+  names: string[],
+  onProgress?: (done: number, total: number) => void,
+  signal?: AbortSignal,
+  logger?: GeocodeLogger,
+  onResult?: (name: string, coords: GpsCoords | null) => void,
+): Promise<Map<string, GpsCoords | null>> {
+  const results = new Map<string, GpsCoords | null>();
+  let done = 0;
+
+  for (const name of names) {
+    if (signal?.aborted) break;
+
+    // Check cache first (no network request, no delay needed)
+    const cached = geocodeCache.get(name);
+    if (cached !== undefined) {
+      logger?.("cache-hit", { name, coords: cached });
+      results.set(name, cached);
+      onResult?.(name, cached);
+      done++;
+      onProgress?.(done, names.length);
+      continue;
+    }
+
+    try {
+      const coords = await geocodePlaceName(name, signal, logger);
+      results.set(name, coords);
+      onResult?.(name, coords);
+      done++;
+      onProgress?.(done, names.length);
+    } catch (err: unknown) {
+      if (isAbortError(err)) break;
+      throw err;
+    }
+
+    // Rate limit: wait 1.1s between requests to comply with Nominatim policy
+    if (done < names.length) {
+      await sleep(1100);
+    }
+  }
+
+  return results;
+}
