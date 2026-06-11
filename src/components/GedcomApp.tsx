@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
 import FileUpload from "@/components/FileUpload";
 import WarningsList from "@/components/WarningsList";
 import { extractLocations } from "@/lib/gedcom/extractor";
-import { geocodePlaceNames } from "@/lib/geocoding/nominatim";
+import { geocodePlaceNames, type GeocodeLogger } from "@/lib/geocoding/nominatim";
 import type { LocationData } from "@/lib/gedcom/types";
 import styles from "./GedcomApp.module.css";
 
@@ -21,35 +21,72 @@ type Stage =
   | { type: "geocoding"; done: number; total: number }
   | { type: "done"; fileName: string; locations: LocationData[]; warnings: string[] };
 
+function normalisePlaceName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
 export default function GedcomApp() {
   const [stage, setStage] = useState<Stage>({ type: "idle" });
 
   const handleFile = useCallback(async (text: string, fileName: string) => {
     setStage({ type: "parsing" });
+    const loggerEnabled = new URLSearchParams(window.location.search).get("logger") === "true";
+    const logGeocoding: GeocodeLogger = (message, details) => {
+      if (!loggerEnabled) return;
+      if (details) {
+        // eslint-disable-next-line no-console
+        console.debug(`[geocoding] ${message}`, details);
+        return;
+      }
+      // eslint-disable-next-line no-console
+      console.debug(`[geocoding] ${message}`);
+    };
 
     // Parse GEDCOM synchronously (file is already in memory)
     const { locations, warnings } = extractLocations(text);
+    logGeocoding("locations-extracted", {
+      total: locations.length,
+      withCoords: locations.filter(l => l.coords).length,
+      withoutCoords: locations.filter(l => !l.coords).length,
+    });
 
-    // Determine which locations still need geocoding
+    // Determine unique locations that still need geocoding
     const needsGeocode = locations.filter(l => !l.coords);
+    const geocodeTargetByKey = new Map<string, string>();
+    for (const loc of needsGeocode) {
+      const key = normalisePlaceName(loc.name);
+      if (!geocodeTargetByKey.has(key)) {
+        geocodeTargetByKey.set(key, loc.name);
+      }
+    }
+    const geocodeTargets = Array.from(geocodeTargetByKey.values());
+    logGeocoding("geocode-targets-prepared", {
+      missingLocations: needsGeocode.length,
+      uniqueTargets: geocodeTargets.length,
+      deduplicated: needsGeocode.length - geocodeTargets.length,
+    });
 
-    if (needsGeocode.length === 0) {
+    if (geocodeTargets.length === 0) {
       setStage({ type: "done", fileName, locations, warnings });
       return;
     }
 
     // Geocode missing locations via Nominatim (rate-limited)
-    setStage({ type: "geocoding", done: 0, total: needsGeocode.length });
+    setStage({ type: "geocoding", done: 0, total: geocodeTargets.length });
 
     const geocoded = await geocodePlaceNames(
-      needsGeocode.map(l => l.name),
+      geocodeTargets,
       (done, total) => setStage({ type: "geocoding", done, total }),
+      undefined,
+      loggerEnabled ? logGeocoding : undefined,
     );
 
     // Merge geocoded coordinates back into location objects
     const extraWarnings: string[] = [];
     for (const loc of needsGeocode) {
-      const coords = geocoded.get(loc.name);
+      const key = normalisePlaceName(loc.name);
+      const geocodeTarget = geocodeTargetByKey.get(key) ?? loc.name;
+      const coords = geocoded.get(geocodeTarget);
       if (coords) {
         loc.coords = coords;
       } else {

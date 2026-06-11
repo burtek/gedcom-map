@@ -7,6 +7,8 @@ interface NominatimResult {
   display_name: string;
 }
 
+export type GeocodeLogger = (message: string, details?: Record<string, unknown>) => void;
+
 /** In-memory cache: place name -> coords (or null if geocoding failed) */
 const geocodeCache = new Map<string, GpsCoords | null>();
 
@@ -32,9 +34,13 @@ function isAbortError(err: unknown): boolean {
 export async function geocodePlaceName(
   name: string,
   signal?: AbortSignal,
+  logger?: GeocodeLogger,
 ): Promise<GpsCoords | null> {
   const cached = geocodeCache.get(name);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) {
+    logger?.("cache-hit", { name, coords: cached });
+    return cached;
+  }
 
   const url = new URL("https://nominatim.openstreetmap.org/search");
   url.searchParams.set("q", name);
@@ -43,6 +49,7 @@ export async function geocodePlaceName(
 
   let result: GpsCoords | null = null;
   try {
+    logger?.("request", { name, url: url.toString() });
     const response = await fetch(url.toString(), {
       headers: {
         "X-App-Name": "gedcom-map",
@@ -61,10 +68,19 @@ export async function geocodePlaceName(
       const lon = parseFloat(data[0].lon);
       if (!isNaN(lat) && !isNaN(lon)) {
         result = { lat, lon };
+        logger?.("response-ok", { name, coords: result });
+      } else {
+        logger?.("response-invalid-coords", { name, lat: data[0].lat, lon: data[0].lon });
       }
+    } else {
+      logger?.("response-empty", { name });
     }
   } catch (err: unknown) {
     if (isAbortError(err)) throw err;
+    logger?.("request-error", {
+      name,
+      error: err instanceof Error ? err.message : String(err),
+    });
     // Other errors: treat as not found
   }
 
@@ -83,6 +99,7 @@ export async function geocodePlaceNames(
   names: string[],
   onProgress?: (done: number, total: number) => void,
   signal?: AbortSignal,
+  logger?: GeocodeLogger,
 ): Promise<Map<string, GpsCoords | null>> {
   const results = new Map<string, GpsCoords | null>();
   let done = 0;
@@ -93,13 +110,14 @@ export async function geocodePlaceNames(
     // Check cache first (no network request, no delay needed)
     const cached = geocodeCache.get(name);
     if (cached !== undefined) {
+      logger?.("cache-hit", { name, coords: cached });
       results.set(name, cached);
       done++;
       onProgress?.(done, names.length);
       continue;
     }
 
-    const coords = await geocodePlaceName(name, signal);
+    const coords = await geocodePlaceName(name, signal, logger);
     results.set(name, coords);
     done++;
     onProgress?.(done, names.length);

@@ -8,6 +8,7 @@ A browser-based tool that reads a GEDCOM genealogy file and marks every geograph
 - **GEDKeeper support** – handles `_LOC` location entities and resolves `@LOC_ID@` references from `PLAC` tags.
 - **GPS coordinates** – when the file contains `MAP`/`LATI`/`LONG` data under a `PLAC` record, those coordinates are used directly (no network call required).
 - **Geocoding fallback** – locations that have only a place name are geocoded in the background using the [Nominatim](https://nominatim.openstreetmap.org/) API (OpenStreetMap, free, no API key needed), rate-limited to 1 request / second per the usage policy.
+- **Geocoding debug mode** – append `?logger=true` to the URL to log geocoding decisions/requests in the browser console.
 - **Warnings list** – any location that cannot be resolved is listed below the map with a plain-language explanation.
 - **Drag-and-drop upload** – drop a `.ged` file onto the upload area or click to browse.
 - **No secrets / API keys required** – Nominatim and OpenStreetMap tiles are both free and open.
