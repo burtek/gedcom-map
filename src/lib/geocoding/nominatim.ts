@@ -100,6 +100,7 @@ export async function geocodePlaceNames(
   onProgress?: (done: number, total: number) => void,
   signal?: AbortSignal,
   logger?: GeocodeLogger,
+  onResult?: (name: string, coords: GpsCoords | null) => void,
 ): Promise<Map<string, GpsCoords | null>> {
   const results = new Map<string, GpsCoords | null>();
   let done = 0;
@@ -112,6 +113,7 @@ export async function geocodePlaceNames(
     if (cached !== undefined) {
       logger?.("cache-hit", { name, coords: cached });
       results.set(name, cached);
+      onResult?.(name, cached);
       done++;
       onProgress?.(done, names.length);
       continue;
@@ -119,6 +121,7 @@ export async function geocodePlaceNames(
 
     const coords = await geocodePlaceName(name, signal, logger);
     results.set(name, coords);
+    onResult?.(name, coords);
     done++;
     onProgress?.(done, names.length);
 

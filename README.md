@@ -7,7 +7,7 @@ A browser-based tool that reads a GEDCOM genealogy file and marks every geograph
 - **GEDCOM 5.x support** – reads individuals (`INDI`), families (`FAM`), and all standard event tags (birth, death, marriage, burial, residence, …).
 - **GEDKeeper support** – handles `_LOC` location entities and resolves both direct `PLAC @LOC_ID@` values and child `PLAC -> _LOC @LOC_ID@` references.
 - **GPS coordinates** – when the file contains `MAP`/`LATI`/`LONG` data under `PLAC` or `_LOC`, those coordinates are used directly (no network call required).
-- **Geocoding fallback** – locations that have only a place name are geocoded in the background using the [Nominatim](https://nominatim.openstreetmap.org/) API (OpenStreetMap, free, no API key needed), rate-limited to 1 request / second per the usage policy.
+- **Geocoding fallback** – after parsing, the app shows counts of locations with/without coordinates and asks whether to geocode missing ones via [Nominatim](https://nominatim.openstreetmap.org/) (OpenStreetMap, free, no API key needed), rate-limited to 1 request / second.
 - **Geocoding debug mode** – append `?logger=true` to the URL to log geocoding decisions/requests in the browser console.
 - **Warnings list** – any location that cannot be resolved is listed below the map with a plain-language explanation.
 - **Drag-and-drop upload** – drop a `.ged` file onto the upload area or click to browse.
@@ -52,10 +52,10 @@ extractLocations() (src/lib/gedcom/extractor.ts)
   ├─ Extracts every PLAC tag from INDI + FAM events
   └─ Returns LocationData[] + initial warnings
         │
-        ▼  (only for locations without GPS coords)
+        ▼  (user can start/skip geocoding for locations without GPS coords)
 geocodePlaceNames() (src/lib/geocoding/nominatim.ts)
   ├─ Nominatim /search (1 req/s, in-memory cache)
-  └─ Merges coordinates back into LocationData[]
+  └─ Merges coordinates back into LocationData[] progressively
         │
         ▼
 MapView (react-leaflet + OpenStreetMap tiles)
