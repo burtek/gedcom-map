@@ -49,13 +49,17 @@ const INDI_EVENT_TAGS = new Set([
 /** All event tags we want to extract for families */
 const FAM_EVENT_TAGS = new Set(["MARR", "DIV", "ENGA", "EVEN"]);
 
-/** Parse LATI/LONG values like "N51.5074" or "W74.0060" into decimal degrees */
+/** Parse LATI/LONG values like "N51.5074", "W74.0060" or plain "-74.0060" */
 function parseCoord(value: string, posMark: string, negMark: string): number | null {
   const upper = value.trim().toUpperCase();
-  const sign = upper.startsWith(negMark) ? -1 : upper.startsWith(posMark) ? 1 : null;
-  if (sign === null) return null;
-  const num = parseFloat(upper.slice(1));
-  return isNaN(num) ? null : sign * num;
+  if (upper.startsWith(negMark) || upper.startsWith(posMark)) {
+    const sign = upper.startsWith(negMark) ? -1 : 1;
+    const num = parseFloat(upper.slice(1));
+    return isNaN(num) ? null : sign * num;
+  }
+
+  const num = parseFloat(upper);
+  return isNaN(num) ? null : num;
 }
 
 /** Extract GPS coordinates from a MAP node (children: LATI, LONG) */
@@ -141,7 +145,7 @@ export function extractLocations(gedcomText: string): GedcomParseResult {
     placValue: string,
     placNode: GedcomNode,
   ): { name: string; coords: GpsCoords | null } | null {
-    // Check if it's a reference to a _LOC record
+    // Check if PLAC is directly a reference to a _LOC record
     const refMatch = placValue.match(/^@([^@]+)@$/);
     if (refMatch) {
       const locRef = `@${refMatch[1]}@`;
@@ -149,6 +153,15 @@ export function extractLocations(gedcomText: string): GedcomParseResult {
       if (locRec) return locRec;
       // Fall through – try to use the ref id as name
       return { name: refMatch[1], coords: null };
+    }
+
+    // GEDKeeper often stores a plain PLAC value with a child `_LOC @L...@` reference
+    const locRefNode = findChild(placNode.children, "_LOC");
+    if (locRefNode?.line.value) {
+      const locRec = locRecords.get(locRefNode.line.value.trim());
+      if (locRec) {
+        return { name: placValue || locRec.name, coords: locRec.coords };
+      }
     }
 
     // Plain name – extract inline GPS if present
