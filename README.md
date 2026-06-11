@@ -5,8 +5,8 @@ A browser-based tool that reads a GEDCOM genealogy file and marks every geograph
 ## Features
 
 - **GEDCOM 5.x support** – reads individuals (`INDI`), families (`FAM`), and all standard event tags (birth, death, marriage, burial, residence, …).
-- **GEDKeeper support** – handles `_LOC` location entities and resolves `@LOC_ID@` references from `PLAC` tags.
-- **GPS coordinates** – when the file contains `MAP`/`LATI`/`LONG` data under a `PLAC` record, those coordinates are used directly (no network call required).
+- **GEDKeeper support** – handles `_LOC` location entities and resolves both direct `PLAC @LOC_ID@` values and child `PLAC -> _LOC @LOC_ID@` references.
+- **GPS coordinates** – when the file contains `MAP`/`LATI`/`LONG` data under `PLAC` or `_LOC`, those coordinates are used directly (no network call required).
 - **Geocoding fallback** – locations that have only a place name are geocoded in the background using the [Nominatim](https://nominatim.openstreetmap.org/) API (OpenStreetMap, free, no API key needed), rate-limited to 1 request / second per the usage policy.
 - **Geocoding debug mode** – append `?logger=true` to the URL to log geocoding decisions/requests in the browser console.
 - **Warnings list** – any location that cannot be resolved is listed below the map with a plain-language explanation.
@@ -84,7 +84,7 @@ It builds a tree from the flat line stream, then `extractor.ts` walks the tree t
 4 LONG W0.1278
 ```
 
-Latitude/longitude prefixes: `N`/`S` for latitude, `E`/`W` for longitude.
+Latitude/longitude supports both prefixes (`N`/`S` for latitude, `E`/`W` for longitude) and plain numeric values (for example `49.356590`, `20.897162`).
 
 **GEDKeeper `_LOC` entities**:
 ```
@@ -103,6 +103,7 @@ A `PLAC` tag may carry `@L1@` as its value, which is resolved to the named `_LOC
 yarn install        # install dependencies
 yarn dev            # start Next.js dev server
 yarn lint           # ESLint (flat config)
+yarn test           # run Vitest unit tests
 yarn type-check     # tsc --noEmit
 yarn build          # production build
 ```
