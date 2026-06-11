@@ -69,6 +69,7 @@ export default function FileUpload({ onFile, disabled }: FileUploadProps) {
         }
       }}
       aria-label="Upload GEDCOM file"
+      aria-disabled={disabled ? "true" : "false"}
     >
       <input
         ref={inputRef}

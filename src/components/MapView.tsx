@@ -3,6 +3,9 @@
 import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import type { LocationData } from "@/lib/gedcom/types";
 import styles from "./MapView.module.css";
 
@@ -11,9 +14,9 @@ function fixLeafletIcons() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    iconRetinaUrl: markerIcon2x.src,
+    iconUrl: markerIcon.src,
+    shadowUrl: markerShadow.src,
   });
 }
 
@@ -51,7 +54,7 @@ function renderPopupContent(location: LocationData): string {
   } else {
     lines.push("<ul style='margin:0.4rem 0 0;padding:0 0 0 1rem'>");
     for (const event of location.events) {
-      const who = event.persons.length > 0 ? event.persons.join(" &amp; ") : "Unknown";
+      const who = event.persons.length > 0 ? event.persons.join(" & ") : "Unknown";
       const when = event.date ? `, ${escapeHtml(event.date)}` : "";
       lines.push(`<li>${escapeHtml(event.type)}: ${escapeHtml(who)}${when}</li>`);
     }
@@ -86,10 +89,11 @@ export default function MapView({ locations }: MapViewProps) {
           maxZoom={19}
         />
         <FitBounds locations={locationsWithCoords} />
-        {locationsWithCoords.map((location, i) => {
+        {locationsWithCoords.map(location => {
           const { lat, lon } = location.coords ?? { lat: 0, lon: 0 };
+          const markerKey = `${location.name}:${lat}:${lon}`;
           return (
-            <Marker key={i} position={[lat, lon]}>
+            <Marker key={markerKey} position={[lat, lon]}>
               <Popup maxWidth={320}>
                 <div
                   dangerouslySetInnerHTML={{ __html: renderPopupContent(location) }}

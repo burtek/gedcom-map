@@ -42,11 +42,24 @@ function buildTree(lines: GedcomLine[]): GedcomNode[] {
       stack.length = 0;
       stack.push(node);
     } else {
+      if (stack.length === 0) {
+        throw new Error(
+          `Invalid GEDCOM structure: encountered level ${line.level} without a parent.`,
+        );
+      }
+
       // Pop until parent level is (line.level - 1)
       while (stack.length > 1 && stack[stack.length - 1].line.level >= line.level) {
         stack.pop();
       }
-      stack[stack.length - 1].children.push(node);
+
+      const parent = stack[stack.length - 1];
+      if (parent.line.level !== line.level - 1) {
+        throw new Error(
+          `Invalid GEDCOM structure: level jump from ${parent.line.level} to ${line.level}.`,
+        );
+      }
+      parent.children.push(node);
       stack.push(node);
     }
   }

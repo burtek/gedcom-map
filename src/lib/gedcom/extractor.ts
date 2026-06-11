@@ -231,11 +231,11 @@ export function extractLocations(gedcomText: string): GedcomParseResult {
   // Collect locations
   const locations = Array.from(locationMap.values());
 
-  // Warn about locations without coords – geocoding will handle them later
+  // Warn about locations without coords
   const missingCoords = locations.filter(l => !l.coords);
   if (missingCoords.length > 0) {
     warnings.push(
-      `${missingCoords.length} location(s) have no GPS coordinates and will be geocoded via Nominatim.`,
+      `${missingCoords.length} location(s) have no GPS coordinates.`,
     );
   }
 

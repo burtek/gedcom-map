@@ -15,12 +15,20 @@ const geocodeCache = new Map<string, GpsCoords | null>();
  * Returns null if no result is found.
  *
  * Nominatim usage policy requires:
- * - A valid User-Agent identifying the application
  * - No more than 1 request per second
  *
  * The caller is responsible for rate-limiting when calling this function
  * for multiple places in sequence.
  */
+function isAbortError(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "name" in err &&
+    (err as { name?: string }).name === "AbortError"
+  );
+}
+
 export async function geocodePlaceName(
   name: string,
   signal?: AbortSignal,
@@ -37,7 +45,7 @@ export async function geocodePlaceName(
   try {
     const response = await fetch(url.toString(), {
       headers: {
-        "User-Agent": "gedcom-map/1.0 (https://github.com/burtek/gedcom-map)",
+        "X-App-Name": "gedcom-map",
         "Accept-Language": "en",
       },
       signal,
@@ -55,8 +63,8 @@ export async function geocodePlaceName(
         result = { lat, lon };
       }
     }
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") throw err;
+  } catch (err: unknown) {
+    if (isAbortError(err)) throw err;
     // Other errors: treat as not found
   }
 

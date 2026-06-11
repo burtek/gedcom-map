@@ -33,7 +33,7 @@ src/
     ├── GedcomApp.tsx       Orchestrator: upload → parse → geocode → display
     ├── FileUpload.tsx      Drag-and-drop file picker
     ├── MapView.tsx         Leaflet map (client-side only, dynamic import)
-    └── WarningsList.tsx    Collapsible warnings section
+    └── WarningsList.tsx    Warnings section
 ```
 
 ### Data flow
@@ -121,4 +121,3 @@ Simply connect the repository to a Vercel project and deploy.
 - Use conventional commits for all commit messages.
 - If a work item is large, split it into multiple commits.
 - Keep this README updated whenever functionality or workflow changes.
-

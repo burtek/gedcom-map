@@ -5,7 +5,7 @@ import { useCallback, useState } from "react";
 import FileUpload from "@/components/FileUpload";
 import WarningsList from "@/components/WarningsList";
 import { extractLocations } from "@/lib/gedcom/extractor";
-import { geocodePlaceNames, sleep } from "@/lib/geocoding/nominatim";
+import { geocodePlaceNames } from "@/lib/geocoding/nominatim";
 import type { LocationData } from "@/lib/gedcom/types";
 import styles from "./GedcomApp.module.css";
 
@@ -58,10 +58,6 @@ export default function GedcomApp() {
         );
       }
     }
-
-    // Rate-limit: respect Nominatim's 1 req/s policy (already handled in geocodePlaceNames),
-    // but add a small extra sleep before finishing to avoid any edge-case burst
-    await sleep(500);
 
     setStage({
       type: "done",
