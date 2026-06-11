@@ -11,12 +11,15 @@ import styles from "./MapView.module.css";
 
 // Fix Leaflet default icon paths broken by webpack/Next.js bundling
 function fixLeafletIcons() {
+  const toIconUrl = (icon: string | { src: string }) =>
+    typeof icon === "string" ? icon : icon.src;
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   delete (L.Icon.Default.prototype as any)._getIconUrl;
   L.Icon.Default.mergeOptions({
-    iconRetinaUrl: markerIcon2x.src,
-    iconUrl: markerIcon.src,
-    shadowUrl: markerShadow.src,
+    iconRetinaUrl: toIconUrl(markerIcon2x),
+    iconUrl: toIconUrl(markerIcon),
+    shadowUrl: toIconUrl(markerShadow),
   });
 }
 
