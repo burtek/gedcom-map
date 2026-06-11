@@ -1,0 +1,44 @@
+.container {
+  margin-top: 1.5rem;
+  border: 1px solid #f59e0b;
+  border-radius: 0.5rem;
+  background: #fffbeb;
+  padding: 1rem 1.25rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .container {
+    background: #1c1a07;
+    border-color: #b45309;
+  }
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: #92400e;
+}
+
+@media (prefers-color-scheme: dark) {
+  .title {
+    color: #fcd34d;
+  }
+}
+
+.list {
+  margin: 0;
+  padding: 0 0 0 1.25rem;
+}
+
+.item {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #78350f;
+}
+
+@media (prefers-color-scheme: dark) {
+  .item {
+    color: #fde68a;
+  }
+}
